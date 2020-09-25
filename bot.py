@@ -2,18 +2,26 @@ from telegram.ext import Updater, MessageHandler, Filters
 from telegram.ext import CommandHandler
 from telegram import ReplyKeyboardMarkup
 from time import sleep
+from random import random, randint
 
 
 class LanguageBot:
     def __init__(self):
-        self.dictionary = {"1": ['123', '345', '678'], "2": [3, 4], "3": [5, 6], "4": [7, 8]}
-        self.remaining_words = list()
+        self.dictionary = {'1': ['1', '2'], '2': ['3', '4'], '3': ['5', '6'], '4': ['7', '8']}
+        self.remaining_words = ''
         self.while_learning = False
+        self.current_theme = ''
+        self.possible_tests = list()  # из файла
+        self.words_for_test = list()  # из файла
+        self.correct_words = list()  # из файла
+        self.variants = list()  # из файла
+        self.count_of_words = 0  # из файла взять нужное кол-во слов
+        self.rightness = 0
+        self.current_test = 0
 
         self.main()
 
     def start(self, update, context):
-        self.while_learning = False
         reply_keyboard = [['Да', 'Нет']]
         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
@@ -26,47 +34,77 @@ class LanguageBot:
         update.message.reply_text("Начнем?", reply_markup=markup)
 
     def on_message(self, update, context):
-        if not self.while_learning:
-            if update.message.text.lower() == "да":
-                reply_keyboard = [["1", "2"], ["3", "4"]]
-                markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-
-                update.message.reply_text("Вот разделы, которые ты можешь изучить/повторить",
-                                          reply_markup=markup)
-
-            if update.message.text.lower() == "нет":
-                update.message.reply_text(":^(\n Приходи как созреешь")
-
-        else:
-            if update.message.text == "Да":
-                if len(self.remaining_words) > 1:
-                    reply_keyboard = [["Да"], ["Нет"]]
-                    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-
-                    msg = str(self.remaining_words[0]) + "\nОсталось " + str(
-                        len(self.remaining_words) - 1) \
-                        + " слов.\nПродолжаем?"
-                    update.message.reply_text(msg, reply_markup=markup)
-                    self.remaining_words.pop(0)
-                else:
-                    self.while_learning = False
-                    update.message.reply_text(str(self.remaining_words[0]) + "\nУрок кончился!")
-
-            elif update.message.text == "Нет":
-                self.while_learning = False
-                update.message.reply_text("Лучше учись! Возвращайся и закончи урок позже.")
-
-        if update.message.text in self.dictionary.keys():
-            self.while_learning = True
-            self.remaining_words = self.dictionary[update.message.text]
-
-            reply_keyboard = [["Да"], ["Нет"]]
+        if update.message.text.lower() == "да":
+            reply_keyboard = [["1", "2"], ["3", "4"]]
             markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
 
-            msg = str(self.remaining_words[0]) + "\nОсталось " + str(len(self.remaining_words) - 1)\
-                  + " слов.\nПродолжаем?"
-            update.message.reply_text(msg, reply_markup=markup)
-            self.remaining_words.pop(0)
+            update.message.reply_text("Вот разделы, которые ты можешь изучить/повторить",
+                                        reply_markup=markup)
+
+        if update.message.text.lower() == "нет":
+            update.message.reply_text(":^(\nПриходи как созреешь")
+
+        if update.message.text in self.dictionary.keys() and not self.while_learning:
+            self.current_theme = update.message.text
+            self.possible_tests.append(self.current_theme)
+
+            self.remaining_words = '\n'.join(self.dictionary[update.message.text])
+
+            reply_keyboard = [["Хочу"], ["Не хочу"]]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+
+            update.message.reply_text(self.remaining_words + '\nХотите провести тест по пройденным'
+                                                             ' урокам?', reply_markup=markup)
+
+        if update.message.text == "Хочу":
+            self.while_learning = True
+
+            reply_keyboard = [self.possible_tests]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+
+            update.message.reply_text("Вот возможные тесты", reply_markup=markup)
+
+        if update.message.text == "Не хочу":
+            print("Ладно, в следующий раз")
+
+        if update.message.text in self.possible_tests and self.while_learning:
+            self.words_for_test = list()  # из файла взять слова на тест
+            self.variants = list()  # из файла взять слова для вариантов ответа
+            self.count_of_words = 0  # из файла взять нужное кол-во слов
+            self.rightness = 0
+            self.current_test = self.possible_tests[update.message.text]
+
+            reply_keyboard = [self.variants[-self.count_of_words]]
+            markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+            update.message.reply_text("Выбери правильный перевод слова\n"
+                                      + self.words_for_test[0], reply_markup=markup)
+            self.count_of_words -= 1
+
+        if self.while_learning:
+            if update.message.text == self.correct_words[-self.count_of_words]:
+                reply_keyboard = [self.variants[-self.count_of_words]]
+                markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+                update.message.reply_text("Верно, вот следующее слово\n"
+                                          + self.words_for_test[-self.count_of_words],
+                                          reply_markup=markup)
+                self.count_of_words -= 1
+                self.rightness += 1
+            else:
+                reply_keyboard = [self.variants[-self.count_of_words]]
+                markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+                update.message.reply_text("Неверно, правильно " +
+                                          self.correct_words[-self.count_of_words] +
+                                          ", вот следующее слово\n"
+                                          + self.words_for_test[-self.count_of_words],
+                                          reply_markup=markup)
+                self.count_of_words -= 1
+            if self.count_of_words == 0:
+                self.while_learning = False
+                if self.rightness / len(self.correct_words) > 69:
+                    self.possible_tests.pop(self.current_test)
+                else:
+                    update.message.reply_text("Ты плохо написал тест, пройди его еще раз,"
+                                              " чтобы лучше запомнить слова")
 
     def main(self):
         request_kwargs = {
