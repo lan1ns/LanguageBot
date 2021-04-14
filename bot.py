@@ -6,8 +6,19 @@ from telegram import ReplyKeyboardMarkup
 class LanguageBot:
     def __init__(self):
 
-        self.dictionary = {'Части тела': ['tvář - лицо́', 'břicho - живо́т'],
-                           'Прилагательные': ['čerstvý - све́жий', 'okoralý - чёрствый']}
+        self.current_word = dict()
+        self.dictionary = {
+            'Части тела': ['tvář - лицо', 'břicho - живот', 'ruka - рука', 'noha  - нога',
+                           'hlava - голова', "krk - шея", "štětec - кисть", "oko - глаз"],
+            'Прилагательные': ['čerstvý - све́жий', 'okoralý - чёрствый', 'teplý - теплый',
+                               "studený - холодный", "dobrý - добрый", "velký - большой",
+                               "malý - малый", "široký - широкий"],
+            'Цвета': ["červený - красный", "zelený - зеленый", "bílý - белый", "černý - черный",
+                      "modrý - синий", "hnědý - коричневый", "fialový - фиолетовый",
+                      "žlutý - желтый"],
+            'Страны': ["Rusko - Россия", "Česko - Чехия", "Nizozemí - Нидерланды",
+                       "Francie - Франция", "Německo - Германия", "SSA - США",
+                       "Austrálie - Австралия", "Kanada - Канада"]}
         self.remaining_words = dict()
         self.current_theme = dict()
 
@@ -37,7 +48,10 @@ class LanguageBot:
         self.count_of_words.setdefault(str(update.message.chat.id), 0)
         self.rightness.setdefault(str(update.message.chat.id), 0)
         self.current_test.setdefault(str(update.message.chat.id), 0)
+        self.seeking.setdefault(str(update.message.chat.id), 0)
+        self.in_chat_with.setdefault(str(update.message.chat.id), 0)
         self.answer.setdefault(str(update.message.chat.id), 0)
+        self.current_word.setdefault(str(update.message.chat.id), 0)
 
         update.message.reply_text('Привет, я бот, предназначенный для изучения чешского языка.\n'
                                   'Тебе будут представлены разделы с новыми словами,'
@@ -106,15 +120,21 @@ class LanguageBot:
                     words = string.split()
                     self.words_for_test[str(update.message.chat.id)].append(words[0])
 
-                self.variants[str(update.message.chat.id)].append(
-                    [self.dictionary[update.message.text][0].split()[2],
-                     self.dictionary[update.message.text][1].split()[2]])
-                self.variants[str(update.message.chat.id)].append(
-                    [self.dictionary[update.message.text][0].split()[2],
-                     self.dictionary[update.message.text][1].split()[2]])
-                self.count_of_words[str(update.message.chat.id)] = 2
+                for i in range(len(self.dictionary[update.message.text])):
+                    self.variants[str(update.message.chat.id)].append(
+                        [self.dictionary[update.message.text][0].split()[2],
+                         self.dictionary[update.message.text][1].split()[2],
+                         self.dictionary[update.message.text][2].split()[2],
+                         self.dictionary[update.message.text][3].split()[2],
+                         self.dictionary[update.message.text][4].split()[2],
+                         self.dictionary[update.message.text][5].split()[2],
+                         self.dictionary[update.message.text][6].split()[2],
+                         self.dictionary[update.message.text][7].split()[2]])
+
+                self.count_of_words[str(update.message.chat.id)] = 8
                 self.rightness[str(update.message.chat.id)] = 0
                 self.current_test[str(update.message.chat.id)] = update.message.text
+                self.current_word[str(update.message.chat.id)] = 1
 
                 reply_keyboard = [self.variants[str(update.message.chat.id)][0]]
                 markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
@@ -127,7 +147,7 @@ class LanguageBot:
             if self.while_learning[str(update.message.chat.id)] and self.answer[
                 str(update.message.chat.id)]:
                 correct = self.dictionary[self.current_test[str(update.message.chat.id)]][
-                    2 - self.count_of_words[str(update.message.chat.id)]].split()[2]
+                    self.current_word[str(update.message.chat.id)] - 1].split()[2]
 
                 if update.message.text == correct:
                     self.count_of_words[str(update.message.chat.id)] -= 1
@@ -135,33 +155,37 @@ class LanguageBot:
                     if self.count_of_words[str(update.message.chat.id)]:
                         reply_keyboard = [
                             self.variants[str(update.message.chat.id)][
-                                1 - self.count_of_words[str(update.message.chat.id)]]]
+                                self.current_word[str(update.message.chat.id)]]]
                         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
                         update.message.reply_text("Верно, вот следующее слово\n"
                                                   +
                                                   self.words_for_test[str(update.message.chat.id)][
-                                                      1],
+                                                      self.current_word[
+                                                          str(update.message.chat.id)]],
                                                   reply_markup=markup)
+                        self.current_word[str(update.message.chat.id)] += 1
 
                 else:
                     self.count_of_words[str(update.message.chat.id)] -= 1
                     if self.count_of_words[str(update.message.chat.id)]:
                         reply_keyboard = [
                             self.variants[str(update.message.chat.id)][
-                                1 - self.count_of_words[str(update.message.chat.id)]]]
+                                self.current_word[str(update.message.chat.id)]]]
                         markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
                         update.message.reply_text("Неверно, правильно " +
                                                   correct + ", вот следующее слово\n"
                                                   +
                                                   self.words_for_test[str(update.message.chat.id)][
-                                                      1],
+                                                      self.current_word[
+                                                          str(update.message.chat.id)]],
                                                   reply_markup=markup)
+                        self.current_word[str(update.message.chat.id)] += 1
 
-                if self.count_of_words[str(update.message.chat.id)] == 0:
+                if not self.count_of_words[str(update.message.chat.id)]:
                     self.while_learning[str(update.message.chat.id)] = False
                     reply_keyboard = [["Уроки"], ["Искать чат"]]
                     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
-                    if self.rightness[str(update.message.chat.id)] / 2 > 0.69:
+                    if self.rightness[str(update.message.chat.id)] / 8 > 0.69:
                         update.message.reply_text("Ты прошел тест, молодец!", reply_markup=markup)
                         self.possible_tests[str(update.message.chat.id)].remove(
                             self.current_test[str(update.message.chat.id)])
@@ -179,14 +203,12 @@ class LanguageBot:
 
     def chat(self, update, context):
         self.seeking[str(update.message.chat.id)] = 1
-        print(self.seeking)
         flag = False
         chatting = []
 
         for value in dict.items(self.seeking):
             if value[1] == 1:
                 chatting.append(value[0])
-                print(chatting)
 
         if len(chatting) > 1:
             flag = True
